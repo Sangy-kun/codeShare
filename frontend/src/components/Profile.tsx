@@ -1,18 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { User, Camera, Save, X } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const Profile = () => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
-  const [formData, setFormData] = useState({
+interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
+  profile_picture?: string;
+}
+
+const Profile: React.FC = () => {
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [editing, setEditing] = useState<boolean>(false);
+  const [formData, setFormData] = useState<{ username: string; email: string }>({
     username: '',
     email: ''
   });
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [profilePicture, setProfilePicture] = useState(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProfile();
@@ -22,36 +29,34 @@ const Profile = () => {
     try {
       const token = localStorage.getItem('token');
       console.log('Token pour profil:', token ? 'Présent' : 'Absent');
-      
-      const response = await axios.get('/api/profile', {
+
+      const response = await axios.get<UserProfile>('/api/profile', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       console.log('Réponse profil:', response.data);
       setUser(response.data);
       setFormData({
         username: response.data.username || '',
         email: response.data.email || ''
       });
-      
+
       if (response.data.profile_picture) {
-        // Construire l'URL complète de la photo de profil
-        const pictureUrl = response.data.profile_picture.startsWith('http') 
-          ? response.data.profile_picture 
+        const pictureUrl = response.data.profile_picture.startsWith('http')
+          ? response.data.profile_picture
           : `http://localhost:5000${response.data.profile_picture}`;
         console.log('URL photo profil:', pictureUrl);
         setProfilePicture(pictureUrl);
       }
     } catch (error) {
       console.error('Erreur lors de la récupération du profil:', error);
-      console.error('Détails erreur:', error.response?.data);
-      // Suppression de la notification d'erreur
+      console.error('Détails erreur:', (error as any).response?.data);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -59,8 +64,8 @@ const Profile = () => {
     }));
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
         toast.error('Le fichier est trop volumineux (max 5MB)');
@@ -70,13 +75,12 @@ const Profile = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const token = localStorage.getItem('token');
-      
+
       // Mettre à jour les informations du profil
       if (editing) {
         await axios.put('/api/profile', formData, {
@@ -90,21 +94,21 @@ const Profile = () => {
       if (selectedFile) {
         const formDataFile = new FormData();
         formDataFile.append('picture', selectedFile);
-        
+
         await axios.post('/api/profile/picture', formDataFile, {
-          headers: { 
+          headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
           }
         });
-        
+
         toast.success('Photo de profil mise à jour');
         setSelectedFile(null);
         fetchProfile(); // Recharger le profil
       }
     } catch (error) {
       console.error('Erreur lors de la mise à jour:', error);
-      toast.error(error.response?.data?.message || 'Erreur lors de la mise à jour');
+      toast.error((error as any).response?.data?.message || 'Erreur lors de la mise à jour');
     } finally {
       setLoading(false);
     }
@@ -136,7 +140,7 @@ const Profile = () => {
         {/* Photo de profil */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Photo de profil</h3>
-          
+
           <div className="flex items-center space-x-6">
             <div className="relative">
               {profilePicture ? (
@@ -150,7 +154,7 @@ const Profile = () => {
                   <User className="h-12 w-12 text-gray-400" />
                 </div>
               )}
-              
+
               <label htmlFor="profile-upload" className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full cursor-pointer hover:bg-blue-700 transition-colors">
                 <Camera className="h-4 w-4" />
               </label>
@@ -162,7 +166,7 @@ const Profile = () => {
                 className="hidden"
               />
             </div>
-            
+
             <div>
               <p className="text-sm text-gray-600">
                 Cliquez sur l'icône pour changer votre photo
@@ -228,7 +232,7 @@ const Profile = () => {
               >
                 Déconnexion
               </button>
-              
+
               {editing && (
                 <button
                   type="submit"
@@ -248,5 +252,3 @@ const Profile = () => {
 };
 
 export default Profile;
-
-
