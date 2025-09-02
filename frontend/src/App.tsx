@@ -10,11 +10,12 @@ import IncomesList from './components/IncomesList';
 import IncomeForm from './components/IncomeForm';
 import Profile from './components/Profile';
 import Navigation from './components/Navigation';
+import { User } from './types';
 
-function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+const App: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -27,14 +28,14 @@ function App() {
     setLoading(false);
   }, []);
 
-  const handleLogin = (token, userData) => {
+  const handleLogin = (token: string, userData: User): void => {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
     setIsAuthenticated(true);
     setUser(userData);
   };
 
-  const handleLogout = () => {
+  const handleLogout = (): void => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setIsAuthenticated(false);
@@ -79,6 +80,6 @@ function App() {
       </div>
     </Router>
   );
-}
+};
 
 export default App;

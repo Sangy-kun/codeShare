@@ -21,20 +21,31 @@ const Profile = () => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
+      console.log('Token pour profil:', token ? 'Présent' : 'Absent');
+      
       const response = await axios.get('/api/profile', {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
+      console.log('Réponse profil:', response.data);
       setUser(response.data);
       setFormData({
         username: response.data.username || '',
         email: response.data.email || ''
       });
+      
       if (response.data.profile_picture) {
-        setProfilePicture(response.data.profile_picture);
+        // Construire l'URL complète de la photo de profil
+        const pictureUrl = response.data.profile_picture.startsWith('http') 
+          ? response.data.profile_picture 
+          : `http://localhost:5000${response.data.profile_picture}`;
+        console.log('URL photo profil:', pictureUrl);
+        setProfilePicture(pictureUrl);
       }
     } catch (error) {
       console.error('Erreur lors de la récupération du profil:', error);
-      toast.error('Erreur lors du chargement du profil');
+      console.error('Détails erreur:', error.response?.data);
+      // Suppression de la notification d'erreur
     } finally {
       setLoading(false);
     }

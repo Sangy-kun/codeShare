@@ -1,22 +1,29 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, LogIn } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { User } from '../types';
 
-const Register = () => {
-  const [formData, setFormData] = useState({
+interface LoginProps {
+  onLogin: (token: string, user: User) => void;
+}
+
+interface FormData {
+  username: string;
+  password: string;
+}
+
+const Login: React.FC<LoginProps> = ({ onLogin }) => {
+  const [formData, setFormData] = useState<FormData>({
     username: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
+    password: ''
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const navigate = useNavigate();
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -24,38 +31,28 @@ const Register = () => {
     }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     
-    if (!formData.username || !formData.email || !formData.password || !formData.confirmPassword) {
+    if (!formData.username || !formData.password) {
       toast.error('Veuillez remplir tous les champs');
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Les mots de passe ne correspondent pas');
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      toast.error('Le mot de passe doit contenir au moins 6 caractères');
       return;
     }
 
     setLoading(true);
 
     try {
-      const response = await axios.post('/api/auth/register', {
+      const response = await axios.post('/api/auth/login', {
         username: formData.username,
-        email: formData.email,
         password: formData.password
       });
       
-      toast.success('Compte créé avec succès ! Vous pouvez maintenant vous connecter.');
-      navigate('/login');
-    } catch (error) {
-      console.error('Erreur d\'inscription:', error);
-      const message = error.response?.data?.message || 'Erreur lors de l\'inscription';
+      toast.success('Connexion réussie !');
+      onLogin(response.data.token, response.data.user);
+      navigate('/');
+    } catch (error: any) {
+      console.error('Erreur de connexion:', error);
+      const message = error.response?.data?.message || 'Erreur lors de la connexion';
       toast.error(message);
     } finally {
       setLoading(false);
@@ -68,12 +65,12 @@ const Register = () => {
         <div className="text-center">
           <h1 className="text-3xl font-bold text-blue-600">Expense Tracker</h1>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            Créer un compte
+            Se connecter
           </h2>
           <p className="mt-2 text-sm text-gray-600">
             Ou{' '}
-            <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
-              connectez-vous à votre compte existant
+            <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
+              créer un nouveau compte
             </Link>
           </p>
         </div>
@@ -82,10 +79,10 @@ const Register = () => {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleSubmit}>
-            {/* Nom d'utilisateur */}
+            {/* Nom d'utilisateur ou Email */}
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                Nom d'utilisateur
+                Nom d'utilisateur ou Email
               </label>
               <div className="mt-1">
                 <input
@@ -96,26 +93,7 @@ const Register = () => {
                   value={formData.username}
                   onChange={handleInputChange}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Votre nom d'utilisateur"
-                />
-              </div>
-            </div>
-
-            {/* Email */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email
-              </label>
-              <div className="mt-1">
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="votre@email.com"
+                  placeholder="Votre nom d'utilisateur ou email"
                 />
               </div>
             </div>
@@ -150,37 +128,7 @@ const Register = () => {
               </div>
             </div>
 
-            {/* Confirmation du mot de passe */}
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                Confirmer le mot de passe
-              </label>
-              <div className="mt-1 relative">
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  required
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange}
-                  className="appearance-none block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Confirmez votre mot de passe"
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Bouton d'inscription */}
+            {/* Bouton de connexion */}
             <div>
               <button
                 type="submit"
@@ -191,8 +139,8 @@ const Register = () => {
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                 ) : (
                   <>
-                    <UserPlus className="h-5 w-5 mr-2" />
-                    Créer le compte
+                    <LogIn className="h-5 w-5 mr-2" />
+                    Se connecter
                   </>
                 )}
               </button>
@@ -218,6 +166,4 @@ const Register = () => {
   );
 };
 
-export default Register;
-
-
+export default Login;

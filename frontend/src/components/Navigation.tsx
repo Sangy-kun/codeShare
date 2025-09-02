@@ -1,27 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, User, LogOut, Sun, Moon } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { User as UserType } from '../types';
 
-const Navigation = ({ user, onLogout }) => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+interface NavigationProps {
+  user: UserType | null;
+  onLogout: () => void;
+}
+
+const Navigation: React.FC<NavigationProps> = ({ user, onLogout }) => {
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    // Récupérer le mode sombre depuis le localStorage
+    const saved = localStorage.getItem('darkMode');
+    return saved ? JSON.parse(saved) : false;
+  });
   const location = useLocation();
 
-  const handleLogout = () => {
+  const handleLogout = (): void => {
     onLogout();
     toast.success('Déconnexion réussie');
   };
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    // Ici vous pouvez ajouter la logique pour changer le thème
-    document.documentElement.classList.toggle('dark');
+  const toggleDarkMode = (): void => {
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+    
+    // Sauvegarder dans le localStorage
+    localStorage.setItem('darkMode', JSON.stringify(newDarkMode));
+    
+    // Appliquer le mode sombre
+    if (newDarkMode) {
+      document.documentElement.classList.add('dark');
+      document.body.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.body.classList.remove('dark');
+    }
   };
 
-  const isActive = (path) => {
+  const isActive = (path: string): boolean => {
     return location.pathname === path;
   };
+
+  // Appliquer le mode sombre au chargement
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      document.body.classList.add('dark');
+    }
+  }, [darkMode]);
 
   return (
     <nav className="bg-white shadow-lg border-b border-gray-200">
@@ -90,9 +119,15 @@ const Navigation = ({ user, onLogout }) => {
               >
                 {user?.profile_picture ? (
                   <img
-                    src={user.profile_picture}
+                    src={user.profile_picture.startsWith('http') 
+                      ? user.profile_picture 
+                      : `http://localhost:5000${user.profile_picture}`}
                     alt="Photo de profil"
                     className="h-8 w-8 rounded-full object-cover"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'block';
+                    }}
                   />
                 ) : (
                   <User className="h-6 w-6" />
@@ -181,5 +216,3 @@ const Navigation = ({ user, onLogout }) => {
 };
 
 export default Navigation;
-
-

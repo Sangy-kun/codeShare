@@ -12,15 +12,19 @@ const router = express.Router();
 // Configuration de multer pour les photos de profil
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, 'uploads', 'profiles');
+    const uploadDir = path.join(__dirname, '..', 'uploads', 'profiles');
+    console.log('Dossier d\'upload:', uploadDir);
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
+      console.log('Dossier créé:', uploadDir);
     }
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'profile-' + req.user.userId + '-' + uniqueSuffix + path.extname(file.originalname));
+    const filename = 'profile-' + req.user.userId + '-' + uniqueSuffix + path.extname(file.originalname);
+    console.log('Nom du fichier:', filename);
+    cb(null, filename);
   }
 });
 
@@ -42,7 +46,7 @@ const upload = multer({
 router.get('/', auth, async (req, res) => {
   try {
     const user = await db.query(
-      'SELECT id, username, email, profile_picture, dark_mode, created_at FROM users WHERE id = $1',
+      'SELECT id, username, email, profile_picture, created_at FROM users WHERE id = $1',
       [req.user.userId]
     );
 
@@ -114,11 +118,15 @@ router.put('/', auth, [
 // Upload de photo de profil
 router.post('/picture', auth, upload.single('picture'), async (req, res) => {
   try {
+    console.log('Upload de photo de profil pour utilisateur:', req.user.userId);
+    console.log('Fichier reçu:', req.file);
+    
     if (!req.file) {
       return res.status(400).json({ message: 'Aucun fichier fourni' });
     }
 
     const filePath = `/uploads/profiles/${req.file.filename}`;
+    console.log('Chemin du fichier:', filePath);
 
     // Supprimer l'ancienne photo si elle existe
     const oldUser = await db.query(
@@ -128,16 +136,20 @@ router.post('/picture', auth, upload.single('picture'), async (req, res) => {
 
     if (oldUser.rows[0]?.profile_picture) {
       const oldFilePath = path.join(__dirname, '..', oldUser.rows[0].profile_picture);
+      console.log('Ancien fichier:', oldFilePath);
       if (fs.existsSync(oldFilePath)) {
         fs.unlinkSync(oldFilePath);
+        console.log('Ancien fichier supprimé');
       }
     }
 
     // Mettre à jour la base de données
-    await db.query(
-      'UPDATE users SET profile_picture = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+    const result = await db.query(
+      'UPDATE users SET profile_picture = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING profile_picture',
       [filePath, req.user.userId]
     );
+    
+    console.log('Base de données mise à jour:', result.rows[0]);
 
     res.json({
       message: 'Photo de profil mise à jour avec succès',
@@ -177,5 +189,7 @@ router.delete('/picture', auth, async (req, res) => {
 });
 
 module.exports = router;
+
+
 
 

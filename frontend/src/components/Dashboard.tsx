@@ -4,13 +4,14 @@ import { Plus, TrendingUp, TrendingDown, DollarSign, AlertTriangle, RefreshCw } 
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { MonthlyData, Alert } from '../types';
 
-const Dashboard = () => {
-  const [monthlyData, setMonthlyData] = useState(null);
-  const [alerts, setAlerts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+const Dashboard: React.FC = () => {
+  const [monthlyData, setMonthlyData] = useState<MonthlyData | null>(null);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
   useEffect(() => {
     fetchMonthlyData();
@@ -28,11 +29,12 @@ const Dashboard = () => {
     return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
-  const fetchMonthlyData = async () => {
+  const fetchMonthlyData = async (): Promise<void> => {
     try {
       const token = localStorage.getItem('token');
-      console.log('Token:', token ? 'Présent' : 'Absent');
-      console.log('Requête pour:', selectedMonth, selectedYear);
+             console.log('Token:', token ? 'Présent' : 'Absent');
+       console.log('Requête pour:', selectedMonth, selectedYear);
+       console.log('Date actuelle:', new Date().toISOString());
       
       const response = await axios.get(`/api/summary/monthly?month=${selectedMonth}&year=${selectedYear}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -41,10 +43,27 @@ const Dashboard = () => {
              console.log('Réponse API complète:', response.data);
        console.log('Category expenses:', response.data.category_expenses);
        console.log('Category incomes:', response.data.category_incomes);
-       setMonthlyData(response.data);
+       
+       // Convertir les montants en nombres si nécessaire
+       const processedData = {
+         ...response.data,
+         category_expenses: response.data.category_expenses?.map((expense: any) => ({
+           ...expense,
+           amount: typeof expense.amount === 'string' ? parseFloat(expense.amount) : expense.amount
+         })) || [],
+         category_incomes: response.data.category_incomes?.map((income: any) => ({
+           ...income,
+           amount: typeof income.amount === 'string' ? parseFloat(income.amount) : income.amount
+         })) || []
+       };
+       
+       setMonthlyData(processedData);
     } catch (error) {
       console.error('Erreur lors de la récupération des données mensuelles:', error);
-      console.error('Détails de l\'erreur:', error.response?.data);
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        // @ts-ignore
+        console.error('Détails de l\'erreur:', error.response?.data);
+      }
       
       // Au lieu d'afficher une erreur, on initialise avec des données vides
       setMonthlyData({
@@ -62,7 +81,7 @@ const Dashboard = () => {
     }
   };
 
-  const fetchAlerts = async () => {
+  const fetchAlerts = async (): Promise<void> => {
     try {
       const token = localStorage.getItem('token');
       console.log('Récupération des alertes...');
@@ -75,27 +94,47 @@ const Dashboard = () => {
       setAlerts(response.data.alerts);
     } catch (error) {
       console.error('Erreur lors de la récupération des alertes:', error);
-      console.error('Détails de l\'erreur:', error.response?.data);
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        // @ts-ignore
+        console.error('Détails de l\'erreur:', (error as any).response?.data);
+      }
       // En cas d'erreur, on met des alertes vides
       setAlerts([]);
     }
   };
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
+  const COLORS: string[] = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500', '#800080'];
 
-  const formatCurrency = (amount) => {
+  const formatCurrency = (amount: number | string): string => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
       currency: 'MGA'
-    }).format(amount);
+    }).format(numAmount);
   };
 
-  const getMonthName = (month) => {
-    const months = [
+  const getMonthName = (month: number): string => {
+    const months: string[] = [
       'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
       'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
     ];
     return months[month - 1];
+  };
+
+  const getColorName = (hexColor: string): string => {
+    const colorMap: { [key: string]: string } = {
+      '#EF4444': 'Rouge',
+      '#10B981': 'Vert',
+      '#3B82F6': 'Bleu',
+      '#F59E0B': 'Jaune',
+      '#8B5CF6': 'Violet',
+      '#EC4899': 'Rose',
+      '#06B6D4': 'Cyan',
+      '#F97316': 'Orange',
+      '#84CC16': 'Vert clair',
+      '#6366F1': 'Indigo'
+    };
+    return colorMap[hexColor] || hexColor;
   };
 
   if (loading) {
@@ -231,78 +270,104 @@ const Dashboard = () => {
 
         {/* Graphiques et alertes */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Graphique en camembert des dépenses par catégorie */}
-          <div className="bg-white rounded-lg shadow p-6">
-                         <h3 className="text-lg font-semibold text-gray-900 mb-900">
+                     {/* Graphique en camembert des dépenses par catégorie */}
+           <div className="bg-white rounded-lg shadow p-6">
+             <h3 className="text-lg font-semibold text-gray-900 mb-4">
                Dépenses par catégorie
              </h3>
-                           {console.log('Debug - category_expenses:', monthlyData?.category_expenses)}
-              {console.log('Debug - length:', monthlyData?.category_expenses?.length)}
-              {console.log('Debug - category_expenses[0]:', monthlyData?.category_expenses?.[0])}
-                           {monthlyData?.category_expenses ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={monthlyData.category_expenses}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ category_name, amount }) => `${category_name}: ${formatCurrency(amount)}`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="amount"
-                    nameKey="category_name"
-                  >
+             
+             
+                        
+                         {monthlyData?.category_expenses && monthlyData.category_expenses.length > 0 ? (
+               <div>
+                 <ResponsiveContainer width="100%" height={300}>
+                   <PieChart>
+                     <Pie
+                       data={monthlyData.category_expenses}
+                       cx="50%"
+                       cy="50%"
+                       labelLine={false}
+                       label={({ category_name, amount }) => `${category_name}: ${formatCurrency(amount)}`}
+                       outerRadius={80}
+                       fill="#8884d8"
+                       dataKey="amount"
+                       nameKey="category_name"
+                     >
+                       {monthlyData.category_expenses.map((entry, index) => {
+                         const color = entry.category_color || COLORS[index % COLORS.length];
+                         console.log(`Cell ${index} color:`, color, 'for category:', entry.category_name, 'amount:', entry.amount);
+                         return <Cell key={`cell-${index}`} fill={color} />;
+                       })}
+                     </Pie>
+                     <Tooltip formatter={(value) => formatCurrency(value as number)} />
+                   </PieChart>
+                 </ResponsiveContainer>
+                 
+                                   {/* Debug des données */}
+                  <div className="mt-4 p-2 bg-blue-100 rounded text-xs">
+                    <p>Données reçues: {monthlyData.category_expenses.length} dépenses</p>
                     {monthlyData.category_expenses.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.category_color || COLORS[index % COLORS.length]} />
+                      <p key={index}>
+                        {entry.category_name}: {formatCurrency(entry.amount)} - Couleur: {getColorName(entry.category_color)}
+                      </p>
                     ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => formatCurrency(value)} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-                <p className="mb-2">Aucune dépense pour ce mois</p>
-                <p className="text-sm text-gray-400">Commencez par ajouter des dépenses pour voir vos statistiques</p>
-              </div>
-            )}
+                  </div>
+               </div>
+             ) : (
+               <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                 <p className="mb-2">Aucune dépense pour ce mois</p>
+                 <p className="text-sm text-gray-400">Commencez par ajouter des dépenses pour voir vos statistiques</p>
+                 <p className="text-xs text-gray-400 mt-2">Mois sélectionné: {selectedMonth}/{selectedYear}</p>
+               </div>
+             )}
           </div>
 
           {/* Graphique en camembert des revenus par catégorie */}
           <div className="bg-white rounded-lg shadow p-6">
-                         <h3 className="text-lg font-semibold text-gray-900 mb-4">
-               Revenus par catégorie
-             </h3>
-                           {console.log('Debug - category_incomes:', monthlyData?.category_incomes)}
-              {console.log('Debug - length incomes:', monthlyData?.category_incomes?.length)}
-              {console.log('Debug - category_incomes[0]:', monthlyData?.category_incomes?.[0])}
-                           {monthlyData?.category_incomes ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={monthlyData.category_incomes}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ category_name, amount }) => `${category_name}: ${formatCurrency(amount)}`}
-                    outerRadius={80}
-                    fill="#10B981"
-                    dataKey="amount"
-                    nameKey="category_name"
-                  >
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Revenus par catégorie
+            </h3>
+                         {monthlyData?.category_incomes && monthlyData.category_incomes.length > 0 ? (
+               <div>
+                 <ResponsiveContainer width="100%" height={300}>
+                   <PieChart>
+                     <Pie
+                       data={monthlyData.category_incomes}
+                       cx="50%"
+                       cy="50%"
+                       labelLine={false}
+                       label={({ category_name, amount }) => `${category_name}: ${formatCurrency(amount)}`}
+                       outerRadius={80}
+                       fill="#10B981"
+                       dataKey="amount"
+                       nameKey="category_name"
+                     >
+                       {monthlyData.category_incomes.map((entry, index) => {
+                         const color = entry.category_color || COLORS[index % COLORS.length];
+                         console.log(`Income Cell ${index} color:`, color, 'for category:', entry.category_name, 'amount:', entry.amount);
+                         return <Cell key={`cell-${index}`} fill={color} />;
+                       })}
+                     </Pie>
+                     <Tooltip formatter={(value) => formatCurrency(value as number)} />
+                   </PieChart>
+                 </ResponsiveContainer>
+                 
+                                   {/* Debug des données */}
+                  <div className="mt-4 p-2 bg-green-100 rounded text-xs">
+                    <p>Données reçues: {monthlyData.category_incomes.length} revenus</p>
                     {monthlyData.category_incomes.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.category_color || COLORS[index % COLORS.length]} />
+                      <p key={index}>
+                        {entry.category_name}: {formatCurrency(entry.amount)} - Couleur: {getColorName(entry.category_color)}
+                      </p>
                     ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => formatCurrency(value)} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-                <p className="mb-2">Aucun revenu pour ce mois</p>
-                <p className="text-sm text-gray-400">Commencez par ajouter des revenus pour voir vos statistiques</p>
-              </div>
-            )}
+                  </div>
+               </div>
+             ) : (
+               <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                 <p className="mb-2">Aucun revenu pour ce mois</p>
+                 <p className="text-sm text-gray-400">Commencez par ajouter des revenus pour voir vos statistiques</p>
+               </div>
+             )}
           </div>
 
           {/* Graphique en barres de l'évolution mensuelle */}
@@ -310,7 +375,7 @@ const Dashboard = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Évolution des dépenses (6 mois)
             </h3>
-            {monthlyData?.monthly_evolution?.length > 0 ? (
+            {monthlyData?.monthly_evolution && monthlyData.monthly_evolution.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={monthlyData.monthly_evolution}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -319,7 +384,7 @@ const Dashboard = () => {
                     tickFormatter={(month) => getMonthName(month).substring(0, 3)}
                   />
                   <YAxis />
-                  <Tooltip formatter={(value) => formatCurrency(value)} />
+                  <Tooltip formatter={(value) => formatCurrency(value as number)} />
                   <Bar dataKey="total" fill="#3B82F6" />
                 </BarChart>
               </ResponsiveContainer>
@@ -367,5 +432,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
-
