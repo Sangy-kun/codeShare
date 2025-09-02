@@ -12,6 +12,7 @@ import Profile from './components/Profile';
 import Navigation from './components/Navigation';
 import { User } from './types';
 
+
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
