@@ -1,15 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Save, ArrowLeft, Upload, X } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const ExpenseForm = () => {
+interface Category {
+  id: string;
+  name: string;
+}
+
+interface ExpenseFormData {
+  amount: string;
+  description: string;
+  date: string;
+  category_id: string;
+  type: 'one-time' | 'recurring';
+  start_date: string;
+  end_date: string;
+}
+
+const ExpenseForm: React.FC = () => {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const isEditing = Boolean(id);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ExpenseFormData>({
     amount: '',
     description: '',
     date: new Date().toISOString().split('T')[0],
@@ -18,10 +33,11 @@ const ExpenseForm = () => {
     start_date: '',
     end_date: ''
   });
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [currentReceipt, setCurrentReceipt] = useState(null);
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [currentReceipt, setCurrentReceipt] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCategories();
@@ -33,7 +49,7 @@ const ExpenseForm = () => {
   const fetchCategories = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('/api/categories?type=expense', {
+      const response = await axios.get<Category[]>('/api/categories?type=expense', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setCategories(response.data);
@@ -46,10 +62,19 @@ const ExpenseForm = () => {
   const fetchExpense = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`/api/expenses/${id}`, {
+      const response = await axios.get<{
+        amount: number;
+        description: string;
+        date: string;
+        category_id: string;
+        type: 'one-time' | 'recurring';
+        start_date?: string;
+        end_date?: string;
+        receipt_path?: string;
+      }>(`/api/expenses/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       const expense = response.data;
       setFormData({
         amount: expense.amount.toString(),
@@ -60,7 +85,7 @@ const ExpenseForm = () => {
         start_date: expense.start_date || '',
         end_date: expense.end_date || ''
       });
-      
+
       if (expense.receipt_path) {
         setCurrentReceipt(expense.receipt_path);
       }
@@ -70,7 +95,7 @@ const ExpenseForm = () => {
     }
   };
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -78,8 +103,8 @@ const ExpenseForm = () => {
     }));
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
         toast.error('Le fichier est trop volumineux (max 10MB)');
@@ -94,9 +119,9 @@ const ExpenseForm = () => {
     setCurrentReceipt(null);
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.amount || !formData.description || !formData.date) {
       toast.error('Veuillez remplir tous les champs obligatoires');
       return;
@@ -117,11 +142,11 @@ const ExpenseForm = () => {
     try {
       const token = localStorage.getItem('token');
       const submitData = new FormData();
-      
+
       // Ajouter les données du formulaire
       Object.keys(formData).forEach(key => {
-        if (formData[key] !== '') {
-          submitData.append(key, formData[key]);
+        if (formData[key as keyof ExpenseFormData] !== '') {
+          submitData.append(key, formData[key as keyof ExpenseFormData]);
         }
       });
 
@@ -132,7 +157,7 @@ const ExpenseForm = () => {
 
       if (isEditing) {
         await axios.put(`/api/expenses/${id}`, submitData, {
-          headers: { 
+          headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
           }
@@ -140,7 +165,7 @@ const ExpenseForm = () => {
         toast.success('Dépense mise à jour avec succès');
       } else {
         await axios.post('/api/expenses', submitData, {
-          headers: { 
+          headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
           }
@@ -151,7 +176,7 @@ const ExpenseForm = () => {
       navigate('/expenses');
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
-      const message = error.response?.data?.message || 'Erreur lors de la sauvegarde';
+      const message = (error as any).response?.data?.message || 'Erreur lors de la sauvegarde';
       toast.error(message);
     } finally {
       setLoading(false);
@@ -180,7 +205,6 @@ const ExpenseForm = () => {
             </div>
           </div>
         </div>
-
         {/* Formulaire */}
         <div className="bg-white rounded-lg shadow-sm p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -206,7 +230,6 @@ const ExpenseForm = () => {
                 />
               </div>
             </div>
-
             {/* Description */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -222,7 +245,6 @@ const ExpenseForm = () => {
                 placeholder="Ex: Courses alimentaires"
               />
             </div>
-
             {/* Date */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -237,7 +259,6 @@ const ExpenseForm = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-
             {/* Catégorie */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -257,7 +278,6 @@ const ExpenseForm = () => {
                 ))}
               </select>
             </div>
-
             {/* Type de dépense */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -273,7 +293,6 @@ const ExpenseForm = () => {
                 <option value="recurring">Récurrente</option>
               </select>
             </div>
-
             {/* Dates pour les dépenses récurrentes */}
             {formData.type === 'recurring' && (
               <div className="grid grid-cols-2 gap-4">
@@ -305,7 +324,6 @@ const ExpenseForm = () => {
                 </div>
               </div>
             )}
-
             {/* Upload de reçu */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -326,19 +344,18 @@ const ExpenseForm = () => {
                     </button>
                   </div>
                 )}
-
                 {/* Nouveau fichier */}
                 <div className="flex items-center space-x-4">
                   <label className="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                     <Upload className="h-4 w-4 mr-2" />
                     {selectedFile ? selectedFile.name : 'Choisir un fichier'}
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
                   </label>
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
                   {selectedFile && (
                     <button
                       type="button"
@@ -354,7 +371,6 @@ const ExpenseForm = () => {
                 </p>
               </div>
             </div>
-
             {/* Boutons */}
             <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
               <button
@@ -385,5 +401,3 @@ const ExpenseForm = () => {
 };
 
 export default ExpenseForm;
-
-

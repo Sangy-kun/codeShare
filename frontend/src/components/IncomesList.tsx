@@ -4,12 +4,27 @@ import { Plus, Edit, Trash2, DollarSign, Calendar, Building, Tag } from 'lucide-
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const IncomesList = () => {
-  const [incomes, setIncomes] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+interface Category {
+  id: string;
+  name: string;
+  color: string;
+}
+
+interface Income {
+  id: string;
+  source: string;
+  description?: string;
+  amount: number;
+  category_id: string;
+  date: string;
+}
+
+const IncomesList: React.FC = () => {
+  const [incomes, setIncomes] = useState<Income[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
   useEffect(() => {
     fetchIncomes();
@@ -19,7 +34,7 @@ const IncomesList = () => {
   const fetchIncomes = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`/api/incomes?month=${selectedMonth}&year=${selectedYear}`, {
+      const response = await axios.get<Income[]>(`/api/incomes?month=${selectedMonth}&year=${selectedYear}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setIncomes(response.data);
@@ -34,7 +49,7 @@ const IncomesList = () => {
   const fetchCategories = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('/api/categories?type=income', {
+      const response = await axios.get<Category[]>('/api/categories?type=income', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setCategories(response.data);
@@ -43,11 +58,10 @@ const IncomesList = () => {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce revenu ?')) {
       return;
     }
-
     try {
       const token = localStorage.getItem('token');
       await axios.delete(`/api/incomes/${id}`, {
@@ -61,24 +75,24 @@ const IncomesList = () => {
     }
   };
 
-  const getCategoryName = (categoryId) => {
+  const getCategoryName = (categoryId: string): string => {
     const category = categories.find(cat => cat.id === categoryId);
     return category ? category.name : 'Non catégorisé';
   };
 
-  const getCategoryColor = (categoryId) => {
+  const getCategoryColor = (categoryId: string): string => {
     const category = categories.find(cat => cat.id === categoryId);
     return category ? category.color : '#6B7280';
   };
 
-  const formatCurrency = (amount) => {
+  const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
       currency: 'MGA'
     }).format(amount);
   };
 
-  const getMonthName = (month) => {
+  const getMonthName = (month: number): string => {
     const months = [
       'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
       'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
@@ -86,7 +100,7 @@ const IncomesList = () => {
     return months[month - 1];
   };
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string): string => {
     return new Date(dateString).toLocaleDateString('fr-FR');
   };
 
@@ -118,7 +132,6 @@ const IncomesList = () => {
               Nouveau revenu
             </Link>
           </div>
-
           {/* Sélecteur de mois */}
           <div className="mt-4 flex space-x-4">
             <select
@@ -148,7 +161,6 @@ const IncomesList = () => {
             </select>
           </div>
         </div>
-
         {/* Liste des revenus */}
         <div className="bg-white rounded-lg shadow">
           {incomes.length === 0 ? (
@@ -247,7 +259,6 @@ const IncomesList = () => {
             </div>
           )}
         </div>
-
         {/* Résumé */}
         {incomes.length > 0 && (
           <div className="mt-6 bg-white rounded-lg shadow p-6">
@@ -255,7 +266,7 @@ const IncomesList = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-600">
-                  {formatCurrency(incomes.reduce((sum, income) => sum + parseFloat(income.amount), 0))}
+                  {formatCurrency(incomes.reduce((sum, income) => sum + parseFloat(income.amount.toString()), 0))}
                 </div>
                 <div className="text-sm text-gray-500">Total des revenus</div>
               </div>
@@ -267,7 +278,7 @@ const IncomesList = () => {
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-600">
-                  {formatCurrency(incomes.reduce((sum, income) => sum + parseFloat(income.amount), 0) / incomes.length)}
+                  {formatCurrency(incomes.reduce((sum, income) => sum + parseFloat(income.amount.toString()), 0) / incomes.length)}
                 </div>
                 <div className="text-sm text-gray-500">Moyenne par revenu</div>
               </div>

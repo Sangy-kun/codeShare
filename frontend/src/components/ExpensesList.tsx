@@ -1,17 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Search, Filter, Eye, Edit, Trash2, Receipt } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Receipt } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const ExpensesList = () => {
-  const [expenses, setExpenses] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+interface Category {
+  id: string;
+  name: string;
+}
+
+interface Expense {
+  id: string;
+  description: string;
+  amount: number;
+  category_name?: string;
+  category_color?: string;
+  date: string;
+  type: 'recurring' | 'one-time';
+  receipt_path?: string;
+}
+
+const ExpensesList: React.FC = () => {
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
 
   useEffect(() => {
     fetchExpenses();
@@ -23,21 +39,21 @@ const ExpensesList = () => {
       const token = localStorage.getItem('token');
       let url = '/api/expenses';
       const params = new URLSearchParams();
-      
+
       if (selectedMonth && selectedYear) {
-        params.append('month', selectedMonth);
-        params.append('year', selectedYear);
+        params.append('month', selectedMonth.toString());
+        params.append('year', selectedYear.toString());
       }
-      
+
       if (selectedCategory) {
         params.append('category_id', selectedCategory);
       }
-      
+
       if (params.toString()) {
         url += `?${params.toString()}`;
       }
 
-      const response = await axios.get(url, {
+      const response = await axios.get<Expense[]>(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setExpenses(response.data);
@@ -52,7 +68,7 @@ const ExpensesList = () => {
   const fetchCategories = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('/api/categories?type=expense', {
+      const response = await axios.get<Category[]>('/api/categories?type=expense', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setCategories(response.data);
@@ -61,17 +77,16 @@ const ExpensesList = () => {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette dépense ?')) {
       return;
     }
-
     try {
       const token = localStorage.getItem('token');
       await axios.delete(`/api/expenses/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       toast.success('Dépense supprimée avec succès');
       fetchExpenses();
     } catch (error) {
@@ -80,18 +95,18 @@ const ExpensesList = () => {
     }
   };
 
-  const formatCurrency = (amount) => {
+  const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
       currency: 'MGA'
     }).format(amount);
   };
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('fr-FR');
   };
 
-  const getMonthName = (month) => {
+  const getMonthName = (month: number) => {
     const months = [
       'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
       'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
@@ -133,7 +148,6 @@ const ExpensesList = () => {
             </Link>
           </div>
         </div>
-
         {/* Filtres et recherche */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -148,7 +162,6 @@ const ExpensesList = () => {
                 className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-
             {/* Catégorie */}
             <select
               value={selectedCategory}
@@ -162,7 +175,6 @@ const ExpensesList = () => {
                 </option>
               ))}
             </select>
-
             {/* Mois */}
             <select
               value={selectedMonth}
@@ -175,7 +187,6 @@ const ExpensesList = () => {
                 </option>
               ))}
             </select>
-
             {/* Année */}
             <select
               value={selectedYear}
@@ -193,7 +204,6 @@ const ExpensesList = () => {
             </select>
           </div>
         </div>
-
         {/* Liste des dépenses */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           {filteredExpenses.length === 0 ? (
@@ -277,8 +287,8 @@ const ExpensesList = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          expense.type === 'recurring' 
-                            ? 'bg-purple-100 text-purple-800' 
+                          expense.type === 'recurring'
+                            ? 'bg-purple-100 text-purple-800'
                             : 'bg-blue-100 text-blue-800'
                         }`}>
                           {expense.type === 'recurring' ? 'Récurrente' : 'Ponctuelle'}
@@ -309,7 +319,6 @@ const ExpensesList = () => {
             </div>
           )}
         </div>
-
         {/* Résumé */}
         {filteredExpenses.length > 0 && (
           <div className="mt-6 bg-white rounded-lg shadow p-6">
@@ -319,7 +328,7 @@ const ExpensesList = () => {
                   Total des dépenses affichées : {filteredExpenses.length}
                 </p>
                 <p className="text-lg font-semibold text-gray-900">
-                  {formatCurrency(filteredExpenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0))}
+                  {formatCurrency(filteredExpenses.reduce((sum, expense) => sum + parseFloat(expense.amount.toString()), 0))}
                 </p>
               </div>
             </div>
@@ -331,5 +340,3 @@ const ExpensesList = () => {
 };
 
 export default ExpensesList;
-
-
